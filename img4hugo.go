@@ -2,6 +2,7 @@ package main // -*- coding: utf-8 -*-
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 var (
 	imIdentifyCmd = "identify"
 	imConvertCmd  = "convert"
+	staticSplit   = "/static/"
 	imgsizes      []int
 )
 
@@ -87,13 +89,40 @@ func resize(args []string, imgsizes []int) {
 func tohtml(args []string) {
 
 	for i := 0; i < len(args); i++ {
+		file := args[i]
 
-		_, err := getImageData(args[i])
+		_, err := os.Stat(file)
 		if err != nil {
-			log.Fatal("file " + args[i] + " is not accessible")
+			log.Fatal("file " + file + " is not accessible")
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		base := filepath.Base(file)
+		ext := filepath.Ext(base)
+		base_noext := strings.TrimSuffix(base, ext)
+		dir := filepath.Dir(file)
+
+		direntries, err := ioutil.ReadDir(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for j := 0; j < len(direntries); j++ {
+			name := direntries[j].Name()
+
+			if strings.HasPrefix(name, base_noext) {
+				fullpath := cwd + string(os.PathSeparator) + dir + string(os.PathSeparator) + name
+				staticpath := strings.Split(fullpath, staticSplit)
+				fmt.Println(fullpath)
+				fmt.Println("/" + staticpath[1])
+				getImageData(dir + string(os.PathSeparator) + name)
+			}
 		}
 	}
-
 }
 
 func getImageData(img string) (sizeStr string, err error) {
