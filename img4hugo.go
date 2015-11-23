@@ -98,6 +98,7 @@ const template1 = `
 type ImageProps struct {
 	Original    string
 	Caption     string
+	Thumbnail   string
 	Thumbwidth  string
 	Thumbheight string
 }
@@ -138,8 +139,22 @@ func tohtml(args []string) {
 					dir + string(os.PathSeparator) + name
 				staticpath := strings.Split(fullpath, sep+staticSplit+sep)
 				fmt.Println(fullpath)
-				fmt.Println(filepath.ToSlash(filepath.Clean("/" + staticpath[1])))
-				getImageData(dir + string(os.PathSeparator) + name)
+
+				size, err := getImageData(dir + string(os.PathSeparator) + name)
+				if err != nil {
+					log.Fatal(err)
+				}
+				var pic = ImageProps{
+					file,
+					"",
+					filepath.ToSlash(filepath.Clean("/" + staticpath[1])),
+					size,
+					size,
+				}
+				err = template.Execute(os.Stdout, pic)
+				if err != nil {
+					log.Println("executing template:", err)
+				}
 			}
 		}
 	}
