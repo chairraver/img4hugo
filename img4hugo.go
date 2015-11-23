@@ -17,12 +17,10 @@ var (
 	imIdentifyCmd = "identify"
 	imConvertCmd  = "convert"
 	staticSplit   = "static"
-	imgsizes      []int
+	imgsizes      = []int{1024, 640, 320, 160}
 )
 
 func main() {
-
-	imgsizes = []int{1024, 640, 320, 160}
 
 	var img4hugoRootCmd = &cobra.Command{
 		Use:   "img4hugo",
@@ -71,13 +69,13 @@ func resize(args []string, imgsizes []int) {
 				log.Fatal("converting " + file + " to " + output + " failed")
 			}
 
-			sizeStr, err = getImageData(output)
+			width, height, err := getImageData(output)
 			if err != nil {
 				log.Fatal("file " + output + " is not accessible")
 			}
 
 			dest := strings.TrimSuffix(file, ext)
-			dest = dest + "_" + sizeStr + ext
+			dest = dest + "_" + width + "x" + height + ext
 
 			err = os.Rename(output, dest)
 			if err != nil {
@@ -87,15 +85,14 @@ func resize(args []string, imgsizes []int) {
 	}
 }
 
-const template1 = `
-<div class="post-pic" data-src="{{.Original}}">
+const template1 = `<div class="post-pic" data-src="{{.Original}}">
     <img alt="" width="{{.Thumbwidth}}" height="{{.Thumbheight}}"
-	src="/images/2015/11/IMG_20150613_132225_640x725.jpg"></img><br/>
+	src="{{.Thumbnail}}"></img><br/>
 {{if .Caption}}<p>{{.Caption}}</p>{{end}}
 </div>
 `
 
-type ImageProps struct {
+type HtmlImageProps struct {
 	Original    string
 	Caption     string
 	Thumbnail   string
@@ -126,6 +123,10 @@ func tohtml(args []string) {
 		dir := filepath.Dir(file)
 		sep := string(os.PathSeparator)
 
+		webfullpath := cwd + string(os.PathSeparator) + file
+		webfullpath = strings.Split(webfullpath, sep+staticSplit+sep)[1]
+		webfullpath = filepath.ToSlash(filepath.Clean("/" + webfullpath))
+
 		direntries, err := ioutil.ReadDir(dir)
 		if err != nil {
 			log.Fatal(err)
@@ -134,22 +135,23 @@ func tohtml(args []string) {
 		for j := 0; j < len(direntries); j++ {
 			name := direntries[j].Name()
 
-			if strings.HasPrefix(name, base_noext) {
+			if strings.HasPrefix(name, base_noext+"_") {
 				fullpath := cwd + string(os.PathSeparator) +
 					dir + string(os.PathSeparator) + name
-				staticpath := strings.Split(fullpath, sep+staticSplit+sep)
-				fmt.Println(fullpath)
-
-				size, err := getImageData(dir + string(os.PathSeparator) + name)
+				width, height, err := getImageData(fullpath)
 				if err != nil {
 					log.Fatal(err)
 				}
-				var pic = ImageProps{
-					file,
-					"",
-					filepath.ToSlash(filepath.Clean("/" + staticpath[1])),
-					size,
-					size,
+
+				webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
+				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
+
+				pic := HtmlImageProps{
+					Original:    webfullpath,
+					Caption:     "",
+					Thumbnail:   webpath,
+					Thumbwidth:  width,
+					Thumbheight: height,
 				}
 				err = template.Execute(os.Stdout, pic)
 				if err != nil {
@@ -160,7 +162,7 @@ func tohtml(args []string) {
 	}
 }
 
-func getImageData(img string) (sizeStr string, err error) {
+func getImageData(img string) (width, height string, err error) {
 
 	_, err = os.Stat(img)
 	if err != nil {
@@ -174,8 +176,8 @@ func getImageData(img string) (sizeStr string, err error) {
 		return
 	}
 
-	res := strings.Split(string(identifyOut), " ")
-	fmt.Printf("%q\n", res)
-
-	return res[2], nil
+	res := strings.Split(string(identifyOut), " ")[2]
+	width = strings.Split(res, "x")[0]
+	height = strings.Split(res, "x")[1]
+	return
 }
