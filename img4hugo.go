@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ import (
 var (
 	imIdentifyCmd = "identify"
 	imConvertCmd  = "convert"
-	staticSplit   = "/static/"
+	staticSplit   = "static"
 	imgsizes      []int
 )
 
@@ -86,7 +87,24 @@ func resize(args []string, imgsizes []int) {
 	}
 }
 
+const template1 = `
+<div class="post-pic" data-src="{{.Original}}">
+    <img alt="" width="{{.Thumbwidth}}" height="{{.Thumbheight}}"
+	src="/images/2015/11/IMG_20150613_132225_640x725.jpg"></img><br/>
+{{if .Caption}}<p>{{.Caption}}</p>{{end}}
+</div>
+`
+
+type ImageProps struct {
+	Original    string
+	Caption     string
+	Thumbwidth  string
+	Thumbheight string
+}
+
 func tohtml(args []string) {
+
+	template := template.Must(template.New("imagediv").Parse(template1))
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -105,6 +123,7 @@ func tohtml(args []string) {
 		ext := filepath.Ext(base)
 		base_noext := strings.TrimSuffix(base, ext)
 		dir := filepath.Dir(file)
+		sep := string(os.PathSeparator)
 
 		direntries, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -115,10 +134,11 @@ func tohtml(args []string) {
 			name := direntries[j].Name()
 
 			if strings.HasPrefix(name, base_noext) {
-				fullpath := cwd + string(os.PathSeparator) + dir + string(os.PathSeparator) + name
-				staticpath := strings.Split(fullpath, staticSplit)
+				fullpath := cwd + string(os.PathSeparator) +
+					dir + string(os.PathSeparator) + name
+				staticpath := strings.Split(fullpath, sep+staticSplit+sep)
 				fmt.Println(fullpath)
-				fmt.Println("/" + staticpath[1])
+				fmt.Println(filepath.ToSlash(filepath.Clean("/" + staticpath[1])))
 				getImageData(dir + string(os.PathSeparator) + name)
 			}
 		}
