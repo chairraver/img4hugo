@@ -5,11 +5,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/template"
 
+	"github.com/disintegration/imaging"
 	"github.com/spf13/cobra"
 )
 
@@ -59,25 +58,17 @@ func resize(args []string, imgsizes []int) {
 			log.Fatal("file " + file + " is not accessible")
 		}
 
+		img, err := imaging.Open(file)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		for j := 0; j < len(imgsizes); j++ {
-			sizeStr := fmt.Sprintf("%d", imgsizes[j])
-			output := "output_" + sizeStr + ext
-
-			convertCmd := exec.Command(imConvertCmd, "-resize", sizeStr, file, output)
-			err := convertCmd.Run()
-			if err != nil {
-				log.Fatal("converting " + file + " to " + output + " failed")
-			}
-
-			width, height, err := getImageData(output)
-			if err != nil {
-				log.Fatal("file " + output + " is not accessible")
-			}
-
-			dest := strings.TrimSuffix(file, ext)
-			dest = dest + "_" + width + "x" + height + ext
-
-			err = os.Rename(output, dest)
+			resized := imaging.Resize(img, imgsizes[j], 0, imaging.Lanczos)
+			rect := resized.Bounds().Max
+			out := fmt.Sprintf("%s_%dx%d%s", strings.TrimSuffix(file, ext), rect.X, rect.Y, ext)
+			err = imaging.Save(resized, out)
+			log.Println("saved " + out)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -85,10 +76,10 @@ func resize(args []string, imgsizes []int) {
 	}
 }
 
-const template1 = `<div class="post-pic" data-src="{{.Original}}">
-    <img alt="" width="{{.Thumbwidth}}" height="{{.Thumbheight}}"
-	src="{{.Thumbnail}}"></img><br/>
-{{if .Caption}}<p>{{.Caption}}</p>{{end}}
+const template1 = `<div class="post-pic" data-src="{{.Original}}"{{if .Caption}} data-html-sub="{{.Caption}}"{{end}}>
+    <img{{if .Caption}} alt="{{.Caption}}"{{end}} width="{{.Thumbwidth}}" height="{{.Thumbheight}}"
+	src="{{.Thumbnail}}"/><br/>
+{{if .Caption}}<p><em>{{.Caption}}</em></p>{{end}}
 </div>
 `
 
@@ -96,13 +87,13 @@ type HtmlImageProps struct {
 	Original    string
 	Caption     string
 	Thumbnail   string
-	Thumbwidth  string
-	Thumbheight string
+	Thumbwidth  int
+	Thumbheight int
 }
 
 func tohtml(args []string) {
 
-	template := template.Must(template.New("imagediv").Parse(template1))
+	// template := template.Must(template.New("imagediv").Parse(template1))
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -138,46 +129,32 @@ func tohtml(args []string) {
 			if strings.HasPrefix(name, base_noext+"_") {
 				fullpath := cwd + string(os.PathSeparator) +
 					dir + string(os.PathSeparator) + name
-				width, height, err := getImageData(fullpath)
+
+				img, err := imaging.Open(fullpath)
 				if err != nil {
 					log.Fatal(err)
 				}
 
+				width := img.Bounds().Max.X
+				height := img.Bounds().Max.Y
+
 				webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
 				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
 
-				pic := HtmlImageProps{
-					Original:    webfullpath,
-					Caption:     "",
-					Thumbnail:   webpath,
-					Thumbwidth:  width,
-					Thumbheight: height,
-				}
-				err = template.Execute(os.Stdout, pic)
-				if err != nil {
-					log.Println("executing template:", err)
-				}
+				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n", "", webfullpath, "")
+				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n", webpath, width, height)
+				// picProps := HtmlImageProps{
+				// 	Original:    webfullpath,
+				// 	Caption:     "",
+				// 	Thumbnail:   webpath,
+				// 	Thumbwidth:  width,
+				// 	Thumbheight: height,
+				// }
+				// err = template.Execute(os.Stdout, picProps)
+				// if err != nil {
+				// 	log.Println("executing template:", err)
+				// }
 			}
 		}
 	}
-}
-
-func getImageData(img string) (width, height string, err error) {
-
-	_, err = os.Stat(img)
-	if err != nil {
-		return
-	}
-
-	identifyCmd := exec.Command(imIdentifyCmd, img)
-
-	identifyOut, err := identifyCmd.Output()
-	if err != nil {
-		return
-	}
-
-	res := strings.Split(string(identifyOut), " ")[2]
-	width = strings.Split(res, "x")[0]
-	height = strings.Split(res, "x")[1]
-	return
 }
