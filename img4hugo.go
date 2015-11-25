@@ -2,6 +2,7 @@ package main // -*- coding: utf-8 -*-
 
 import (
 	"fmt"
+	"image"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ var (
 	imIdentifyCmd = "identify"
 	imConvertCmd  = "convert"
 	staticSplit   = "static"
+	stdsize       = []int{1920, 1080}
 	imgsizes      = []int{1024, 640, 320, 160}
 )
 
@@ -26,11 +28,19 @@ func main() {
 		Short: "img4hugo is an application to simply embedding images into hugo content.",
 	}
 
-	var resizeCmd = &cobra.Command{
-		Use:   "resize image",
-		Short: "Resize the image to the standard set of image sizes",
+	var defaultSizeCmd = &cobra.Command{
+		Use:   "size image(s)",
+		Short: "Create thumbnails for the image with the standard set of image sizes",
 		Run: func(cmd *cobra.Command, args []string) {
-			resize(args, imgsizes)
+			defaultSize(args, stdsize)
+		},
+	}
+
+	var thumbsCmd = &cobra.Command{
+		Use:   "thumbs image",
+		Short: "Create thumbnails for the image with the standard set of image sizes",
+		Run: func(cmd *cobra.Command, args []string) {
+			thumbs(args, imgsizes)
 		},
 	}
 
@@ -42,12 +52,52 @@ func main() {
 		},
 	}
 
-	img4hugoRootCmd.AddCommand(resizeCmd)
+	img4hugoRootCmd.AddCommand(thumbsCmd)
+	img4hugoRootCmd.AddCommand(defaultSizeCmd)
 	img4hugoRootCmd.AddCommand(tohtml)
 	img4hugoRootCmd.Execute()
 }
 
-func resize(args []string, imgsizes []int) {
+func defaultSize(args []string, stdsize []int) {
+	for i := 0; i < len(args); i++ {
+
+		orgext := ".org"
+		file := args[i]
+
+		_, err := os.Stat(file)
+		if err != nil {
+			log.Fatal("file " + file + " is not accessible")
+		}
+
+		img, err := imaging.Open(file)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var resized image.Image
+		if img.Bounds().Max.X > img.Bounds().Max.Y {
+			resized = imaging.Resize(img, stdsize[0], 0, imaging.Lanczos)
+		} else {
+			resized = imaging.Resize(img, 0, stdsize[1], imaging.Lanczos)
+		}
+		_, err = os.Stat(file + orgext)
+		// err == nil means file is already present and has already
+		// been resize in which case we abort.
+		if err == nil {
+			log.Fatal(file + orgext + " exists; has apparently already been resized")
+		}
+		err = os.Rename(file, file+orgext)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = imaging.Save(resized, file)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func thumbs(args []string, imgsizes []int) {
 	for i := 0; i < len(args); i++ {
 
 		file := args[i]
@@ -74,21 +124,6 @@ func resize(args []string, imgsizes []int) {
 			}
 		}
 	}
-}
-
-const template1 = `<div class="post-pic" data-src="{{.Original}}"{{if .Caption}} data-html-sub="{{.Caption}}"{{end}}>
-    <img{{if .Caption}} alt="{{.Caption}}"{{end}} width="{{.Thumbwidth}}" height="{{.Thumbheight}}"
-	src="{{.Thumbnail}}"/><br/>
-{{if .Caption}}<p><em>{{.Caption}}</em></p>{{end}}
-</div>
-`
-
-type HtmlImageProps struct {
-	Original    string
-	Caption     string
-	Thumbnail   string
-	Thumbwidth  int
-	Thumbheight int
 }
 
 func tohtml(args []string) {
@@ -143,17 +178,6 @@ func tohtml(args []string) {
 
 				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n", "", webfullpath, "")
 				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n", webpath, width, height)
-				// picProps := HtmlImageProps{
-				// 	Original:    webfullpath,
-				// 	Caption:     "",
-				// 	Thumbnail:   webpath,
-				// 	Thumbwidth:  width,
-				// 	Thumbheight: height,
-				// }
-				// err = template.Execute(os.Stdout, picProps)
-				// if err != nil {
-				// 	log.Println("executing template:", err)
-				// }
 			}
 		}
 	}
