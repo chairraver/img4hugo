@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -14,35 +15,41 @@ import (
 )
 
 var (
-	imIdentifyCmd = "identify"
-	imConvertCmd  = "convert"
-	staticSplit   = "static"
-	stdsize       = []int{1920, 1080}
-	imgsizes      = []int{1024, 640, 320, 160}
+	imIdentifyCmd  = "identify"
+	imConvertCmd   = "convert"
+	staticSplit    = "static"
+	stdsize        = []int{1920, 1080}
+	imgsizes       = []int{1024, 640, 320, 160}
+	newDefaultSize string
+	newThumbsSizes string
+	caption        string
+	class          string
 )
 
 func main() {
 
 	var img4hugoRootCmd = &cobra.Command{
 		Use:   "img4hugo",
-		Short: "img4hugo is an application to simply embedding images into hugo content.",
+		Short: "img4hugo is an application to simplyfy the embedding of images into hugo content.",
 	}
 
 	var defaultSizeCmd = &cobra.Command{
 		Use:   "size image(s)",
-		Short: "Create thumbnails for the image with the standard set of image sizes",
+		Short: "Resize the max. resolution image (" + fmt.Sprint(stdsize) + ")",
 		Run: func(cmd *cobra.Command, args []string) {
 			defaultSize(args, stdsize)
 		},
 	}
+	defaultSizeCmd.Flags().StringVarP(&newDefaultSize, "size", "s", "", "specifiy new default image size x,y")
 
 	var thumbsCmd = &cobra.Command{
 		Use:   "thumbs image",
-		Short: "Create thumbnails for the image with the standard set of image sizes",
+		Short: "Create thumbnails for the image with a standard set of image sizes (" + fmt.Sprint(imgsizes) + ")",
 		Run: func(cmd *cobra.Command, args []string) {
 			thumbs(args, imgsizes)
 		},
 	}
+	thumbsCmd.Flags().StringVarP(&newThumbsSizes, "size", "s", "", "specifiy new list of thumbnail image sizes")
 
 	var tohtml = &cobra.Command{
 		Use:   "tohtml image",
@@ -51,6 +58,8 @@ func main() {
 			tohtml(args)
 		},
 	}
+	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
+	tohtml.Flags().StringVarP(&class, "class", "l", "", "additional css class for the image")
 
 	img4hugoRootCmd.AddCommand(thumbsCmd)
 	img4hugoRootCmd.AddCommand(defaultSizeCmd)
@@ -59,6 +68,22 @@ func main() {
 }
 
 func defaultSize(args []string, stdsize []int) {
+	if newDefaultSize != "" {
+		vals := strings.Split(newDefaultSize, ",")
+		for i := 0; i < len(vals); i++ {
+			numstr := strings.TrimSpace(vals[i])
+			if numstr == "" {
+				continue
+			}
+			num, err := strconv.Atoi(numstr)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			stdsize[i] = num
+		}
+	}
+
 	for i := 0; i < len(args); i++ {
 
 		orgext := ".org"
@@ -98,6 +123,23 @@ func defaultSize(args []string, stdsize []int) {
 }
 
 func thumbs(args []string, imgsizes []int) {
+	if newThumbsSizes != "" {
+		vals := strings.Split(newDefaultSize, ",")
+		for i := 0; i < len(vals); i++ {
+			numstr := strings.TrimSpace(vals[i])
+			if numstr == "" {
+				imgsizes[i] = 0
+				continue
+			}
+			num, err := strconv.Atoi(numstr)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			imgsizes[i] = num
+		}
+	}
+
 	for i := 0; i < len(args); i++ {
 
 		file := args[i]
@@ -114,6 +156,9 @@ func thumbs(args []string, imgsizes []int) {
 		}
 
 		for j := 0; j < len(imgsizes); j++ {
+			if imgsizes[j] == 0 {
+				continue
+			}
 			resized := imaging.Resize(img, imgsizes[j], 0, imaging.Lanczos)
 			rect := resized.Bounds().Max
 			out := fmt.Sprintf("%s_%dx%d%s", strings.TrimSuffix(file, ext), rect.X, rect.Y, ext)
@@ -127,8 +172,6 @@ func thumbs(args []string, imgsizes []int) {
 }
 
 func tohtml(args []string) {
-
-	// template := template.Must(template.New("imagediv").Parse(template1))
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -176,7 +219,7 @@ func tohtml(args []string) {
 				webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
 				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
 
-				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n", "", webfullpath, "")
+				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n", class, webfullpath, caption)
 				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n", webpath, width, height)
 			}
 		}
