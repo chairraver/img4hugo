@@ -161,7 +161,8 @@ func thumbs(args []string, imgsizes []int) {
 			}
 			resized := imaging.Resize(img, imgsizes[j], 0, imaging.Lanczos)
 			rect := resized.Bounds().Max
-			out := fmt.Sprintf("%s_%dx%d%s", strings.TrimSuffix(file, ext), rect.X, rect.Y, ext)
+			out := fmt.Sprintf("%s_%dx%d%s",
+				strings.TrimSuffix(file, ext), rect.X, rect.Y, ext)
 			err = imaging.Save(resized, out)
 			log.Println("saved " + out)
 			if err != nil {
@@ -219,8 +220,10 @@ func tohtml(args []string) {
 				webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
 				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
 
-				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n", class, webfullpath, caption)
-				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n", webpath, width, height)
+				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",
+					class, webfullpath, caption)
+				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n",
+					webpath, width, height)
 			}
 		}
 	}
