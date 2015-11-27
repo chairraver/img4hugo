@@ -19,7 +19,7 @@ var (
 	imConvertCmd   = "convert"
 	staticSplit    = "static"
 	stdsize        = []int{1920, 1080}
-	imgsizes       = []int{1024, 640, 320, 160}
+	imgsizes       = []int{1024, 640, 320}
 	newDefaultSize string
 	newThumbsSizes string
 	caption        string
@@ -125,6 +125,7 @@ func defaultSize(args []string, stdsize []int) {
 func thumbs(args []string, imgsizes []int) {
 	if newThumbsSizes != "" {
 		vals := strings.Split(newDefaultSize, ",")
+		imgsizes := make([]int, 5, 10)
 		for i := 0; i < len(vals); i++ {
 			numstr := strings.TrimSpace(vals[i])
 			if numstr == "" {
