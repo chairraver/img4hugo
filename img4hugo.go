@@ -19,6 +19,7 @@ var (
 	imConvertCmd   = "convert"
 	staticSplit    = "static"
 	stdsize        = []int{1920, 1080}
+	noxyswap       bool
 	imgsizes       = []int{1024, 640, 320}
 	newDefaultSize string
 	newThumbsSizes string
@@ -37,10 +38,11 @@ func main() {
 		Use:   "size image(s)",
 		Short: "Resize the max. resolution image (" + fmt.Sprint(stdsize) + ")",
 		Run: func(cmd *cobra.Command, args []string) {
-			defaultSize(args, stdsize)
+			defaultSize(args, stdsize, noxyswap)
 		},
 	}
 	defaultSizeCmd.Flags().StringVarP(&newDefaultSize, "size", "s", "", "specifiy new default image size x,y")
+	defaultSizeCmd.Flags().BoolVarP(&noxyswap, "noxyswap", "n", false, "don't scale relative to longest side")
 
 	var thumbsCmd = &cobra.Command{
 		Use:   "thumbs image",
@@ -67,7 +69,7 @@ func main() {
 	img4hugoRootCmd.Execute()
 }
 
-func defaultSize(args []string, stdsize []int) {
+func defaultSize(args []string, stdsize []int, noxyswap bool) {
 	if newDefaultSize != "" {
 		vals := strings.Split(newDefaultSize, ",")
 		for i := 0; i < len(vals); i++ {
@@ -100,7 +102,7 @@ func defaultSize(args []string, stdsize []int) {
 		}
 
 		var resized image.Image
-		if img.Bounds().Max.X > img.Bounds().Max.Y {
+		if noxyswap || (img.Bounds().Max.X > img.Bounds().Max.Y) {
 			resized = imaging.Resize(img, stdsize[0], 0, imaging.Lanczos)
 		} else {
 			resized = imaging.Resize(img, 0, stdsize[1], imaging.Lanczos)
