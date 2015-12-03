@@ -36,22 +36,22 @@ func main() {
 
 	var defaultSizeCmd = &cobra.Command{
 		Use:   "size image(s)",
-		Short: "Resize the max. resolution image (" + fmt.Sprint(stdsize) + ")",
+		Short: "Resize the max. resolution image " + fmt.Sprint(stdsize),
 		Run: func(cmd *cobra.Command, args []string) {
 			defaultSize(args, stdsize, noxyswap)
 		},
 	}
-	defaultSizeCmd.Flags().StringVarP(&newDefaultSize, "size", "s", "", "specifiy new default image size x,y")
+	defaultSizeCmd.Flags().StringVarP(&newDefaultSize, "size", "s", "1920,1080", "specifiy new default image size x,y")
 	defaultSizeCmd.Flags().BoolVarP(&noxyswap, "noxyswap", "n", false, "don't scale relative to longest side")
 
 	var thumbsCmd = &cobra.Command{
 		Use:   "thumbs image",
-		Short: "Create thumbnails for the image with a standard set of image sizes (" + fmt.Sprint(imgsizes) + ")",
+		Short: "Create thumbnails for the image with a standard set of image sizes " + fmt.Sprint(imgsizes),
 		Run: func(cmd *cobra.Command, args []string) {
 			thumbs(args, imgsizes)
 		},
 	}
-	thumbsCmd.Flags().StringVarP(&newThumbsSizes, "size", "s", "", "specifiy new list of thumbnail image sizes")
+	thumbsCmd.Flags().StringVarP(&newThumbsSizes, "size", "s", "1024,640,320", "specifiy new list of thumbnail image sizes")
 
 	var tohtml = &cobra.Command{
 		Use:   "tohtml image",
@@ -63,8 +63,8 @@ func main() {
 	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
 	tohtml.Flags().StringVarP(&class, "class", "l", "", "additional css class for the image")
 
-	img4hugoRootCmd.AddCommand(thumbsCmd)
 	img4hugoRootCmd.AddCommand(defaultSizeCmd)
+	img4hugoRootCmd.AddCommand(thumbsCmd)
 	img4hugoRootCmd.AddCommand(tohtml)
 	img4hugoRootCmd.Execute()
 }
