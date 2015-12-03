@@ -23,7 +23,7 @@ in connection with Hugo. The program serves 3 purposes:
 `img4hugo` supports the three subcommands `size`, `thumbs` and `tohtml`.
 
 ``` bash
-$ img4hugo.exe help
+$ img4hugo help
 img4hugo is an application to simplyfy the embedding of images into hugo content.
 
 Usage:
@@ -39,22 +39,51 @@ Use "img4hugo [command] --help" for more information about a command.
 
 ### The `size` subcommand
 
+The `size` subcommand is used to resize the original or master
+image. The thumbnails are derived from this image. The original image
+is renamed with the `.org` extension and the new rescaled image is
+written to a file with the original image name. If a file already
+exists with the `.org` extension, the program terminates. You have to
+manually rename the backup file to the original file name to repeat
+the rescaling process.
+
 ``` bash
-$ img4hugo.exe size -h
+$ img4hugo size -h
 Resize the max. resolution image [1920 1080]
 
 Usage:
   img4hugo size <image file> [flags]
 
 Flags:
-  -n, --noxyswap[=false]: don't scale relative to longest side
+  -n, --noxyswap[=false]: do not scale relative to longest side
   -s, --size="1920,1080": specifiy new default image size x,y
+```
+
+By default, the program uses standard HD resolution 1920x1080 as the
+default size for the rescaled image. Additionally the default
+behaviour is to rescale vertically to 1080 if the vertical dimension
+of the image is larger than the horizontal dimension. This behaviour
+can be changed by supplying the `-n` or `-noxyswap` flag. Then the
+image is always resized to the default horizontal dimension.
+
+The `-s` or `--size` flag can be used to specify different horizontal
+and vertical dimensions.
+
+
+
+``` bash
+$ dir IMG_20150531_124021*
+
+Mode                LastWriteTime     Length Name
+----                -------------     ------ ----
+-a---        25.11.2015     13:58    1054685 IMG_20150531_124021.jpg
+-a---        16.11.2015     09:19     952557 IMG_20150531_124021.jpg.org
 ```
 
 ### The `thumbs` subcommand
 
 ``` bash
-$ img4hugo.exe thumbs -h
+$ img4hugo thumbs -h
 Create thumbnails for the image with a standard set of image sizes [1024 640 320]
 
 Usage:
@@ -64,12 +93,21 @@ Flags:
   -s, --size="1024,640,320": specifiy new list of thumbnail image sizes
 ```
 
+``` bash
+$ dir IMG_20150531_124021*
+
+Mode                LastWriteTime     Length Name
+----                -------------     ------ ----
+-a---        25.11.2015     13:58     349000 IMG_20150531_124021_1024x729.jpg
+-a---        25.11.2015     13:58      44588 IMG_20150531_124021_320x228.jpg
+-a---        25.11.2015     13:58     148356 IMG_20150531_124021_640x456.jpg
+```
+
 ### The `tohtml` subcommand
 
 
-
 ``` bash
-$ img4hugo.exe tohtml -h
+$ img4hugo tohtml -h
 Produce a short HTML fragment for inclusion into a hugo post
 
 Usage:
@@ -81,7 +119,7 @@ Flags:
 ```
 
 ``` bash
-$ img4hugo.exe tohtml -l "floatright" -c "Nice shoot." .\IMG_20150613_132225.jpg
+$ img4hugo tohtml -l "floatright" -c "Nice shoot." IMG_20150613_132225.jpg
 {{< imgdiv class="floatright" href="/images/2015/11/IMG_20150613_132225.jpg" alt="Nice shoot."
     src="/images/2015/11/IMG_20150613_132225_1024x1159.jpg" width="1024" height="1159" >}}
 {{< imgdiv class="floatright" href="/images/2015/11/IMG_20150613_132225.jpg" alt="Nice shoot."

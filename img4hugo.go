@@ -42,7 +42,7 @@ func main() {
 		},
 	}
 	defaultSizeCmd.Flags().StringVarP(&newDefaultSize, "size", "s", "1920,1080", "specifiy new default image size x,y")
-	defaultSizeCmd.Flags().BoolVarP(&noxyswap, "noxyswap", "n", false, "don't scale relative to longest side")
+	defaultSizeCmd.Flags().BoolVarP(&noxyswap, "noxyswap", "n", false, "do not scale relative to longest side")
 
 	var thumbsCmd = &cobra.Command{
 		Use:   "thumbs image",
