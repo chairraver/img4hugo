@@ -25,6 +25,7 @@ var (
 	newThumbsSizes string
 	caption        string
 	class          string
+	noerrors       bool
 )
 
 func main() {
@@ -57,11 +58,12 @@ func main() {
 		Use:   "tohtml image",
 		Short: "Produce a short HTML fragment for inclusion into a hugo post",
 		Run: func(cmd *cobra.Command, args []string) {
-			tohtml(args)
+			tohtml(args, noerrors)
 		},
 	}
 	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
 	tohtml.Flags().StringVarP(&class, "class", "l", "", "additional css class for the image")
+	tohtml.Flags().BoolVarP(&noerrors, "noerrors", "n", false, "do not warn about location")
 
 	img4hugoRootCmd.AddCommand(defaultSizeCmd)
 	img4hugoRootCmd.AddCommand(thumbsCmd)
@@ -88,21 +90,36 @@ func defaultSize(args []string, stdsize []int, noxyswap bool) {
 
 	for i := 0; i < len(args); i++ {
 
+		var img image.Image
+
 		orgext := ".org"
 		file := args[i]
 
-		_, err := os.Stat(file)
-		if err != nil {
-			log.Fatal("file " + file + " is not accessible")
-		}
+		_, err := os.Stat(file + orgext)
+		// err == nil means file is already present and has already
+		// been resize in which case we abort.
+		if err == nil {
+			log.Print(file + orgext + " exists; has apparently already been resized")
+			log.Print("using " + file + orgext + " as source")
 
-		img, err := imaging.Open(file)
-		if err != nil {
-			log.Fatal(err)
+			img, err = imaging.Open(file + orgext)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			_, err := os.Stat(file)
+			if err != nil {
+				log.Fatal("file " + file + " is not accessible")
+			}
+
+			img, err = imaging.Open(file)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		var resized image.Image
-		if noxyswap || (img.Bounds().Max.X > img.Bounds().Max.Y) {
+		if noxyswap || (img.Bounds().Max.X >= img.Bounds().Max.Y) {
 			resized = imaging.Resize(img, stdsize[0], 0, imaging.Lanczos)
 		} else {
 			resized = imaging.Resize(img, 0, stdsize[1], imaging.Lanczos)
@@ -110,12 +127,11 @@ func defaultSize(args []string, stdsize []int, noxyswap bool) {
 		_, err = os.Stat(file + orgext)
 		// err == nil means file is already present and has already
 		// been resize in which case we abort.
-		if err == nil {
-			log.Fatal(file + orgext + " exists; has apparently already been resized")
-		}
-		err = os.Rename(file, file+orgext)
 		if err != nil {
-			log.Fatal(err)
+			err = os.Rename(file, file+orgext)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		err = imaging.Save(resized, file)
 		if err != nil {
@@ -175,7 +191,7 @@ func thumbs(args []string, imgsizes []int) {
 	}
 }
 
-func tohtml(args []string) {
+func tohtml(args []string, noerrors bool) {
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -197,7 +213,13 @@ func tohtml(args []string) {
 		sep := string(os.PathSeparator)
 
 		webfullpath := cwd + string(os.PathSeparator) + file
-		webfullpath = strings.Split(webfullpath, sep+staticSplit+sep)[1]
+		if strings.Contains(webfullpath, sep+staticSplit+sep) {
+			webfullpath = strings.Split(webfullpath, sep+staticSplit+sep)[1]
+		} else {
+			if !noerrors {
+				log.Print("not within your Hugo directory structure")
+			}
+		}
 		webfullpath = filepath.ToSlash(filepath.Clean("/" + webfullpath))
 
 		direntries, err := ioutil.ReadDir(dir)
@@ -220,7 +242,16 @@ func tohtml(args []string) {
 				width := img.Bounds().Max.X
 				height := img.Bounds().Max.Y
 
-				webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
+				var webpath string
+				if strings.Contains(fullpath, sep+staticSplit+sep) {
+					webpath = strings.Split(fullpath, sep+staticSplit+sep)[1]
+				} else {
+					if !noerrors {
+						log.Print("not within your Hugo directory structure")
+					}
+					webpath = fullpath
+				}
+				// webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
 				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
 
 				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",

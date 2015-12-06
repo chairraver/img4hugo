@@ -5,7 +5,7 @@ variation
 [hugo-uno-chairraver](https://github.com/chairraver/hugo-uno-chairraver),
 based on [hugo-uno](https://github.com/SenjinDarashiva/hugo-uno). It
 is also a first step to learn the [Go](https://golang.org) programming
-language.
+language. I've been using this program on Linux and Windows.
 
 As the name implies, it's a helper program for the handling of images
 in connection with Hugo. The program serves 3 purposes:
@@ -43,9 +43,10 @@ The `size` subcommand is used to resize the original or master
 image. The thumbnails are derived from this image. The original image
 is renamed with the `.org` extension and the new rescaled image is
 written to a file with the original image name. If a file already
-exists with the `.org` extension, the program terminates. You have to
-manually rename the backup file to the original file name to repeat
-the rescaling process.
+exists with the `.org` extension, the program assumes, that this was
+renamed by an earlier execution and that this it is the image with the
+original proportions. Therefore the image with the `.org` extension
+will be used as the source for creating the newly resized image.
 
 ``` bash
 $ img4hugo size -h
@@ -70,7 +71,6 @@ The `-s` or `--size` flag can be used to specify different horizontal
 and vertical dimensions.
 
 
-
 ``` bash
 $ dir IMG_20150531_124021*
 
@@ -80,7 +80,18 @@ Mode                LastWriteTime     Length Name
 -a---        16.11.2015     09:19     952557 IMG_20150531_124021.jpg.org
 ```
 
+Interesting tidbit if you look at the above listing is, that the file
+witout the `.org` is actually the file with the smaller
+dimensions. The `imaging` library, which is used for the image
+manipulation saves the JPG format with a hard coded quality of 95%.
+
 ### The `thumbs` subcommand
+
+The `thumbs` subcommand creates a number of thumbnails for the image
+argument. By default 3 images are created with the horizontal
+dimensions 1024, 640 and 320 pixels. The newly created thumbnail
+images are saved with file name reflecting their respective image
+dimensions.
 
 ``` bash
 $ img4hugo thumbs -h
@@ -93,6 +104,8 @@ Flags:
   -s, --size="1024,640,320": specifiy new list of thumbnail image sizes
 ```
 
+The files created from a sample run would look like the following.
+
 ``` bash
 $ dir IMG_20150531_124021*
 
@@ -103,20 +116,47 @@ Mode                LastWriteTime     Length Name
 -a---        25.11.2015     13:58     148356 IMG_20150531_124021_640x456.jpg
 ```
 
+The optional `-s` or `--size` flag might be used to specify a list of
+different image sizes. The comma separated list of sizes must be
+passed to the program as one argument. So you might want to enclose
+the size list in quotes depending on your shell. `img4hugo` itself is
+prepared to discard any whitespace characters around the comma.
+
 ### The `tohtml` subcommand
 
+This subcommand outputs a short Go template Hugo shortcode for
+each thumbnail belonging to the master image. At this point you would
+have to copy and paste the shortcode for the particular thumbnail,
+that you want to embed into you Hugo post. Additionally the output is
+currently hardcoded into to the program code. Later I intend to
+implement some more variability for the shortcode. 
 
 ``` bash
 $ img4hugo tohtml -h
 Produce a short HTML fragment for inclusion into a hugo post
 
 Usage:
-  img4hugo tohtml image [flags]
+  img4hugo tohtml <image file> [flags]
 
 Flags:
   -c, --caption="": caption text for the image
   -l, --class="": additional css class for the image
+  -n, --noerrors[=false]: do not warn about location
 ```
+
+The `-c` or `--caption` option allows the specification of a caption
+for the image.
+
+The `-l` or `--class` option allows the definition of an additional
+CSS class for the `div`.
+
+The `-n` or `--noerrors` is intended for the case, if the program is
+executed outside of Hugo site or content area. `img4hugo` calculates
+the absolute paths for the image `href`s by looking at the path
+component `/static/`. Typically any static data (images, CSS, etc) for
+a Hugo site is located below the `static` directory. An error message
+is generated, when no `static` path component is found in the path of
+the images. The `-n` option suppressed this error message.
 
 ``` bash
 $ img4hugo tohtml -l "floatright" -c "Nice shoot." IMG_20150613_132225.jpg
@@ -127,6 +167,14 @@ $ img4hugo tohtml -l "floatright" -c "Nice shoot." IMG_20150613_132225.jpg
 {{< imgdiv class="floatright" href="/images/2015/11/IMG_20150613_132225.jpg" alt="Nice shoot."
     src="/images/2015/11/IMG_20150613_132225_640x725.jpg" width="640" height="725" >}}
 ```
+
+The Hugo shortcode `imgdiv` from above is defined in my theme
+variation
+[hugo-uno-chairraver](https://github.com/chairraver/hugo-uno-chairraver)
+and is intended to be used with
+[jQuery lightgallery](https://sachinchoolur.github.io/lightGallery/)
+(note the `data-src` and `data-html-sub` attributes for the `div`
+tag).
 
 ``` html
 <div class="post-pic {{ .Get "class"}}"
