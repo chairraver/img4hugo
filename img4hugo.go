@@ -9,30 +9,39 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/disintegration/imaging"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
-	imIdentifyCmd  = "identify"
-	imConvertCmd   = "convert"
-	staticSplit    = "static"
-	stdsize        = []int{1920, 1080}
-	noxyswap       bool
-	imgsizes       = []int{1024, 640, 320}
-	newDefaultSize string
-	newThumbsSizes string
-	caption        string
-	class          string
-	noerrors       bool
+	imIdentifyCmd   = "identify"
+	imConvertCmd    = "convert"
+	staticSplit     = "static"
+	stdsize         = []int{1920, 1080}
+	stdsizecfg      = "img4hugo.size"
+	noxyswap        bool
+	imgsizes        = []int{1024, 640, 320}
+	imgsizescfg     = "img4hugo.thumbs"
+	tohtmltemplates []*template.Template
+	tohtmlcfg       = "img4hugo.tohtml"
+	newDefaultSize  string
+	newThumbsSizes  string
+	caption         string
+	class           string
+	tplidx          int
+	noerrors        bool
 )
 
 func main() {
 
+	configure()
+
 	var img4hugoRootCmd = &cobra.Command{
 		Use:   "img4hugo",
-		Short: "img4hugo is an application to simplyfy the embedding of images into hugo content.",
+		Short: "img4hugo is an application to simplify the embedding of images into hugo content.",
 	}
 
 	var defaultSizeCmd = &cobra.Command{
@@ -63,12 +72,70 @@ func main() {
 	}
 	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
 	tohtml.Flags().StringVarP(&class, "class", "l", "", "additional css class for the image")
+	tohtml.Flags().IntVarP(&tplidx, "template", "t", 0, "# of template to use")
 	tohtml.Flags().BoolVarP(&noerrors, "noerrors", "n", false, "do not warn about location")
 
 	img4hugoRootCmd.AddCommand(defaultSizeCmd)
 	img4hugoRootCmd.AddCommand(thumbsCmd)
 	img4hugoRootCmd.AddCommand(tohtml)
 	img4hugoRootCmd.Execute()
+}
+
+func configure() {
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("..")
+	viper.AddConfigPath("../..")
+	viper.AddConfigPath("../../..")
+	viper.AddConfigPath("../../../..")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Print(fmt.Errorf("configuration error: %s\n", err))
+	}
+	log.Print("using config file " + viper.ConfigFileUsed() + "\n")
+
+	if viper.IsSet(stdsizecfg) {
+		vals := viper.GetStringSlice(stdsizecfg)
+		if len(vals) == 1 {
+			num, err := strconv.Atoi(strings.TrimSpace(vals[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			stdsize[0] = num
+			stdsize[1] = num
+		}
+		if len(vals) == 2 {
+			num, err := strconv.Atoi(strings.TrimSpace(vals[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			stdsize[0] = num
+
+			num, err = strconv.Atoi(strings.TrimSpace(vals[1]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			stdsize[1] = num
+		}
+	}
+	if viper.IsSet(imgsizescfg) {
+		vals := viper.GetStringSlice(imgsizescfg)
+		imgsizes = make([]int, len(vals))
+		for i := 0; i < len(vals); i++ {
+			num, err := strconv.Atoi(strings.TrimSpace(vals[i]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			imgsizes[i] = num
+		}
+	}
+	if viper.IsSet("img4hugo.test") {
+		log.Print("config file sets test " +
+			fmt.Sprint(viper.GetStringSlice("img4hugo.test")) + "\n")
+	}
+	if viper.IsSet(tohtmlcfg) {
+		log.Print("config file sets template " + viper.GetString(tohtmlcfg) + "\n")
+	}
 }
 
 func defaultSize(args []string, stdsize []int, noxyswap bool) {
