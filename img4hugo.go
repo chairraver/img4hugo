@@ -33,6 +33,13 @@ var (
 	class           string
 	tplidx          int
 	noerrors        bool
+	templates       = []string{
+		`{{"{{<"}} imgdiv class="{{.Class}}" href="{{.Webfullpath}}" alt="{{.Caption}}"
+    src="{{.Webpath}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
+`,
+		`{{"{{<"}} img id="" class="{{.Class}}" href="{{.Webfullpath}}" alt="{{.Caption}}"
+    src="{{.Webpath}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
+`}
 )
 
 func main() {
@@ -67,7 +74,7 @@ func main() {
 		Use:   "tohtml image",
 		Short: "Produce a short HTML fragment for inclusion into a hugo post",
 		Run: func(cmd *cobra.Command, args []string) {
-			tohtml(args, noerrors)
+			tohtml(args, tplidx, noerrors)
 		},
 	}
 	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
@@ -90,9 +97,12 @@ func configure() {
 	viper.AddConfigPath("../../../..")
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Print(fmt.Errorf("configuration error: %s\n", err))
+		log.Print(fmt.Errorf("configuration from file error: %s\n", err))
 	}
-	log.Print("using config file " + viper.ConfigFileUsed() + "\n")
+
+	if viper.ConfigFileUsed() != "" {
+		log.Print("using config file " + viper.ConfigFileUsed() + "\n")
+	}
 
 	if viper.IsSet(stdsizecfg) {
 		vals := viper.GetStringSlice(stdsizecfg)
@@ -129,12 +139,14 @@ func configure() {
 			imgsizes[i] = num
 		}
 	}
-	if viper.IsSet("img4hugo.test") {
-		log.Print("config file sets test " +
-			fmt.Sprint(viper.GetStringSlice("img4hugo.test")) + "\n")
-	}
+
+	tmpls := templates
 	if viper.IsSet(tohtmlcfg) {
-		log.Print("config file sets template " + viper.GetString(tohtmlcfg) + "\n")
+		tmpls = viper.GetStringSlice(tohtmlcfg)
+	}
+	tohtmltemplates = make([]*template.Template, len(tmpls))
+	for i := 0; i < len(tmpls); i++ {
+		tohtmltemplates[i] = template.Must(template.New("tohtml" + string(i)).Parse(tmpls[i]))
 	}
 }
 
@@ -210,7 +222,7 @@ func defaultSize(args []string, stdsize []int, noxyswap bool) {
 func thumbs(args []string, imgsizes []int) {
 	if newThumbsSizes != "" {
 		vals := strings.Split(newDefaultSize, ",")
-		imgsizes := make([]int, 5, 10)
+		imgsizes := make([]int, len(vals))
 		for i := 0; i < len(vals); i++ {
 			numstr := strings.TrimSpace(vals[i])
 			if numstr == "" {
@@ -258,7 +270,13 @@ func thumbs(args []string, imgsizes []int) {
 	}
 }
 
-func tohtml(args []string, noerrors bool) {
+type tplparms struct {
+	Class, Webfullpath string
+	Caption, Webpath   string
+	Width, Height      int
+}
+
+func tohtml(args []string, tplidx int, noerrors bool) {
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -321,10 +339,20 @@ func tohtml(args []string, noerrors bool) {
 				// webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
 				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
 
-				fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",
-					class, webfullpath, caption)
-				fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n",
-					webpath, width, height)
+				// fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",
+				// 	class, webfullpath, caption)
+				// fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n\n",
+				// 	webpath, width, height)
+
+				r := tplparms{
+					class, webfullpath, caption,
+					webpath, width, height,
+				}
+
+				err = tohtmltemplates[tplidx].Execute(os.Stdout, r)
+				if err != nil {
+					log.Println("executing template:", err)
+				}
 			}
 		}
 	}
