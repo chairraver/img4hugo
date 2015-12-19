@@ -24,10 +24,10 @@ in connection with Hugo. The program serves 3 purposes:
 
 ``` bash
 $ img4hugo help
-img4hugo is an application to simplyfy the embedding of images into hugo content.
+img4hugo is an application to simplify the embedding of images into hugo content.
 
 Usage:
-  img4hugo [command] <image file(s) ...>
+  img4hugo [command]
 
 Available Commands:
   size        Resize the max. resolution image [1920 1080]
@@ -36,6 +36,36 @@ Available Commands:
 
 Use "img4hugo [command] --help" for more information about a command.
 ```
+
+Besides the configuration through the command line options `img4hugo`
+can be configured by including the appropriate parameters in the main
+Hugo config file. `img4hugo` will look into the current directory as
+well up to 4 directory level above the current directory.
+
+The following lines show `img4hugo`s default configuration as it would
+appear in the Hugo configuration file. The macros for the `tohtml`
+option are implemented through standard Go templates.
+
+``` bash
+[img4hugo]
+  size = [ "1920", "1080" ]
+  thumbs = [ "1024", "640", "320" ]
+  tohtml = ['''
+{{`{{<`}} imgdiv class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+    src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{`>}}`}}
+''', '''
+{{`{{<`}} img id="" class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+    src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{`>}}`}}
+'''
+]
+```
+
+* **Class** is directly passed through from the `tohtml` `-l` option.
+* **Caption** the same it true for the  `tohtml` `-c` option.
+* **Fullresimg** is the web path to the full resolution image.
+* **Thumbnailimg** is the web path to the thumbnail image.
+* **Width** and **Height** are directly extracted from the thumbnail
+  image. 
 
 ### The `size` subcommand
 
@@ -136,12 +166,13 @@ $ img4hugo tohtml -h
 Produce a short HTML fragment for inclusion into a hugo post
 
 Usage:
-  img4hugo tohtml <image file> [flags]
+  img4hugo tohtml image [flags]
 
 Flags:
   -c, --caption="": caption text for the image
   -l, --class="": additional css class for the image
   -n, --noerrors[=false]: do not warn about location
+  -t, --template=0: # of template to use
 ```
 
 The `-c` or `--caption` option allows the specification of a caption
@@ -157,6 +188,10 @@ component `/static/`. Typically any static data (images, CSS, etc) for
 a Hugo site is located below the `static` directory. An error message
 is generated, when no `static` path component is found in the path of
 the images. The `-n` option suppressed this error message.
+
+With the `-t` option the corresponding template is
+selected. `img4hugo` contains two templates by default (see the usage
+section above the respective definitions).
 
 ``` bash
 $ img4hugo tohtml -l "floatright" -c "Nice shoot." IMG_20150613_132225.jpg

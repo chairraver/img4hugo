@@ -34,11 +34,11 @@ var (
 	tplidx          int
 	noerrors        bool
 	templates       = []string{
-		`{{"{{<"}} imgdiv class="{{.Class}}" href="{{.Webfullpath}}" alt="{{.Caption}}"
-    src="{{.Webpath}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
+		`{{"{{<"}} imgdiv class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+    src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
 `,
-		`{{"{{<"}} img id="" class="{{.Class}}" href="{{.Webfullpath}}" alt="{{.Caption}}"
-    src="{{.Webpath}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
+		`{{"{{<"}} img id="" class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+    src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
 `}
 )
 
@@ -271,12 +271,16 @@ func thumbs(args []string, imgsizes []int) {
 }
 
 type tplparms struct {
-	Class, Webfullpath string
-	Caption, Webpath   string
-	Width, Height      int
+	Class, Fullresimg     string
+	Caption, Thumbnailimg string
+	Width, Height         int
 }
 
 func tohtml(args []string, tplidx int, noerrors bool) {
+
+	if tplidx > len(tohtmltemplates) {
+		log.Fatal("no template table entry with that index number")
+	}
 
 	for i := 0; i < len(args); i++ {
 		file := args[i]
@@ -297,15 +301,15 @@ func tohtml(args []string, tplidx int, noerrors bool) {
 		dir := filepath.Dir(file)
 		sep := string(os.PathSeparator)
 
-		webfullpath := cwd + string(os.PathSeparator) + file
-		if strings.Contains(webfullpath, sep+staticSplit+sep) {
-			webfullpath = strings.Split(webfullpath, sep+staticSplit+sep)[1]
+		fullresimg := cwd + string(os.PathSeparator) + file
+		if strings.Contains(fullresimg, sep+staticSplit+sep) {
+			fullresimg = strings.Split(fullresimg, sep+staticSplit+sep)[1]
 		} else {
 			if !noerrors {
 				log.Print("not within your Hugo directory structure")
 			}
 		}
-		webfullpath = filepath.ToSlash(filepath.Clean("/" + webfullpath))
+		fullresimg = filepath.ToSlash(filepath.Clean("/" + fullresimg))
 
 		direntries, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -327,26 +331,26 @@ func tohtml(args []string, tplidx int, noerrors bool) {
 				width := img.Bounds().Max.X
 				height := img.Bounds().Max.Y
 
-				var webpath string
+				var thumbnailimg string
 				if strings.Contains(fullpath, sep+staticSplit+sep) {
-					webpath = strings.Split(fullpath, sep+staticSplit+sep)[1]
+					thumbnailimg = strings.Split(fullpath, sep+staticSplit+sep)[1]
 				} else {
 					if !noerrors {
 						log.Print("not within your Hugo directory structure")
 					}
-					webpath = fullpath
+					thumbnailimg = fullpath
 				}
-				// webpath := strings.Split(fullpath, sep+staticSplit+sep)[1]
-				webpath = filepath.ToSlash(filepath.Clean("/" + webpath))
+				// thumbnailimg := strings.Split(fullpath, sep+staticSplit+sep)[1]
+				thumbnailimg = filepath.ToSlash(filepath.Clean("/" + thumbnailimg))
 
 				// fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",
-				// 	class, webfullpath, caption)
+				// 	class, fullresimg, caption)
 				// fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n\n",
-				// 	webpath, width, height)
+				// 	thumbnailimg, width, height)
 
 				r := tplparms{
-					class, webfullpath, caption,
-					webpath, width, height,
+					class, fullresimg, caption,
+					thumbnailimg, width, height,
 				}
 
 				err = tohtmltemplates[tplidx].Execute(os.Stdout, r)
