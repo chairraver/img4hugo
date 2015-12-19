@@ -18,6 +18,11 @@ in connection with Hugo. The program serves 3 purposes:
   then be pasted into the Hugo post or page, which is currently being
   written.
 
+At this point (2015-12-19) it appears to be complete enough. Therefore
+I'll be using it for a bit with my Hugo site. At a later time I plan
+to extend it with text expansions for responsive images (`picture` and
+`srcset`).
+
 # Usage
 
 `img4hugo` supports the three subcommands `size`, `thumbs` and `tohtml`.
