@@ -23,8 +23,8 @@ var (
 	stdsize         = []int{1920, 1080}
 	stdsizecfg      = "img4hugo.size"
 	noxyswap        bool
-	imgsizes        = []int{1024, 640, 320}
-	imgsizescfg     = "img4hugo.thumbs"
+	thumbSizes      = []int{1024, 640, 320}
+	thumbSizescfg   = "img4hugo.thumbs"
 	tohtmltemplates []*template.Template
 	tohtmlcfg       = "img4hugo.tohtml"
 	newDefaultSize  string
@@ -63,9 +63,9 @@ func main() {
 
 	var thumbsCmd = &cobra.Command{
 		Use:   "thumbs image",
-		Short: "Create thumbnails for the image with a standard set of image sizes " + fmt.Sprint(imgsizes),
+		Short: "Create thumbnails for the image with a standard set of image sizes " + fmt.Sprint(thumbSizes),
 		Run: func(cmd *cobra.Command, args []string) {
-			thumbs(args, imgsizes)
+			thumbs(args, thumbSizes)
 		},
 	}
 	thumbsCmd.Flags().StringVarP(&newThumbsSizes, "size", "s", "1024,640,320", "specifiy new list of thumbnail image sizes")
@@ -128,15 +128,15 @@ func configure() {
 			stdsize[1] = num
 		}
 	}
-	if viper.IsSet(imgsizescfg) {
-		vals := viper.GetStringSlice(imgsizescfg)
-		imgsizes = make([]int, len(vals))
+	if viper.IsSet(thumbSizescfg) {
+		vals := viper.GetStringSlice(thumbSizescfg)
+		thumbSizes = make([]int, len(vals))
 		for i := 0; i < len(vals); i++ {
 			num, err := strconv.Atoi(strings.TrimSpace(vals[i]))
 			if err != nil {
 				log.Fatal(err)
 			}
-			imgsizes[i] = num
+			thumbSizes[i] = num
 		}
 	}
 
@@ -219,14 +219,14 @@ func defaultSize(args []string, stdsize []int, noxyswap bool) {
 	}
 }
 
-func thumbs(args []string, imgsizes []int) {
+func thumbs(args []string, thumbSizes []int) {
 	if newThumbsSizes != "" {
-		vals := strings.Split(newDefaultSize, ",")
-		imgsizes := make([]int, len(vals))
+		vals := strings.Split(newThumbsSizes, ",")
+		thumbSizes = make([]int, len(vals))
 		for i := 0; i < len(vals); i++ {
 			numstr := strings.TrimSpace(vals[i])
 			if numstr == "" {
-				imgsizes[i] = 0
+				thumbSizes[i] = 0
 				continue
 			}
 			num, err := strconv.Atoi(numstr)
@@ -234,7 +234,7 @@ func thumbs(args []string, imgsizes []int) {
 				log.Print(err)
 				continue
 			}
-			imgsizes[i] = num
+			thumbSizes[i] = num
 		}
 	}
 
@@ -253,11 +253,11 @@ func thumbs(args []string, imgsizes []int) {
 			log.Fatal(err)
 		}
 
-		for j := 0; j < len(imgsizes); j++ {
-			if imgsizes[j] == 0 {
+		for j := 0; j < len(thumbSizes); j++ {
+			if thumbSizes[j] == 0 {
 				continue
 			}
-			resized := imaging.Resize(img, imgsizes[j], 0, imaging.Lanczos)
+			resized := imaging.Resize(img, thumbSizes[j], 0, imaging.Lanczos)
 			rect := resized.Bounds().Max
 			out := fmt.Sprintf("%s_%dx%d%s",
 				strings.TrimSuffix(file, ext), rect.X, rect.Y, ext)
