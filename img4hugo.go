@@ -34,10 +34,10 @@ var (
 	tplidx          int
 	noerrors        bool
 	templates       = []string{
-		`{{"{{<"}} imgdiv class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+		`{{"{{<"}} imgdiv id="{{.Id}}" class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
     src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
 `,
-		`{{"{{<"}} img id="" class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
+		`{{"{{<"}} img id="{{.Id}}" class="{{.Class}}" href="{{.Fullresimg}}" alt="{{.Caption}}"
     src="{{.Thumbnailimg}}" width="{{.Width}}" height="{{.Height}}" {{">}}"}}
 `}
 )
@@ -271,7 +271,7 @@ func thumbs(args []string, thumbSizes []int) {
 }
 
 type tplparms struct {
-	Class, Fullresimg     string
+	Id, Class, Fullresimg string
 	Caption, Thumbnailimg string
 	Width, Height         int
 }
@@ -349,7 +349,7 @@ func tohtml(args []string, tplidx int, noerrors bool) {
 				// 	thumbnailimg, width, height)
 
 				r := tplparms{
-					class, fullresimg, caption,
+					base_noext, class, fullresimg, caption,
 					thumbnailimg, width, height,
 				}
 
