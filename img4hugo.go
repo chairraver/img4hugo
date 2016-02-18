@@ -20,6 +20,7 @@ var (
 	imIdentifyCmd   = "identify"
 	imConvertCmd    = "convert"
 	staticSplit     = "static"
+	contentDirs     = []string{"static", "content"}
 	stdsize         = []int{1920, 1080}
 	stdsizecfg      = "img4hugo.size"
 	noxyswap        bool
@@ -44,7 +45,9 @@ var (
 
 func main() {
 
-	configure()
+	configDir := configure()
+	contentDirs[0] = configDir + string(os.PathSeparator) + contentDirs[0]
+	contentDirs[1] = configDir + string(os.PathSeparator) + contentDirs[1]
 
 	var img4hugoRootCmd = &cobra.Command{
 		Use:   "img4hugo",
@@ -74,13 +77,12 @@ func main() {
 		Use:   "tohtml image",
 		Short: "Produce a short HTML fragment for inclusion into a hugo post",
 		Run: func(cmd *cobra.Command, args []string) {
-			tohtml(args, tplidx, noerrors)
+			tohtml(args, tplidx)
 		},
 	}
 	tohtml.Flags().StringVarP(&caption, "caption", "c", "", "caption text for the image")
 	tohtml.Flags().StringVarP(&class, "class", "l", "", "additional css class for the image")
 	tohtml.Flags().IntVarP(&tplidx, "template", "t", 0, "# of template to use")
-	tohtml.Flags().BoolVarP(&noerrors, "noerrors", "n", false, "do not warn about location")
 
 	img4hugoRootCmd.AddCommand(defaultSizeCmd)
 	img4hugoRootCmd.AddCommand(thumbsCmd)
@@ -88,7 +90,7 @@ func main() {
 	img4hugoRootCmd.Execute()
 }
 
-func configure() {
+func configure() string {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("..")
@@ -97,7 +99,7 @@ func configure() {
 	viper.AddConfigPath("../../../..")
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Print(fmt.Errorf("configuration from file error: %s\n", err))
+		log.Fatal(fmt.Errorf("configuration from file error: %s\n", err))
 	}
 
 	if viper.ConfigFileUsed() != "" {
@@ -148,6 +150,8 @@ func configure() {
 	for i := 0; i < len(tmpls); i++ {
 		tohtmltemplates[i] = template.Must(template.New("tohtml" + string(i)).Parse(tmpls[i]))
 	}
+
+	return filepath.Dir(viper.ConfigFileUsed())
 }
 
 func defaultSize(args []string, stdsize []int, noxyswap bool) {
@@ -276,7 +280,7 @@ type tplparms struct {
 	Width, Height         int
 }
 
-func tohtml(args []string, tplidx int, noerrors bool) {
+func tohtml(args []string, tplidx int) {
 
 	if tplidx > len(tohtmltemplates) {
 		log.Fatal("no template table entry with that index number")
@@ -299,17 +303,14 @@ func tohtml(args []string, tplidx int, noerrors bool) {
 		ext := filepath.Ext(base)
 		base_noext := strings.TrimSuffix(base, ext)
 		dir := filepath.Dir(file)
-		sep := string(os.PathSeparator)
 
 		fullresimg := cwd + string(os.PathSeparator) + file
-		if strings.Contains(fullresimg, sep+staticSplit+sep) {
-			fullresimg = strings.Split(fullresimg, sep+staticSplit+sep)[1]
-		} else {
-			if !noerrors {
-				log.Print("not within your Hugo directory structure")
+		for _, d := range contentDirs {
+			if strings.HasPrefix(fullresimg, d) {
+				fullresimg = filepath.ToSlash(filepath.Clean(fullresimg[len(d):len(fullresimg)]))
+				break
 			}
 		}
-		fullresimg = filepath.ToSlash(filepath.Clean("/" + fullresimg))
 
 		direntries, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -331,22 +332,24 @@ func tohtml(args []string, tplidx int, noerrors bool) {
 				width := img.Bounds().Max.X
 				height := img.Bounds().Max.Y
 
-				var thumbnailimg string
-				if strings.Contains(fullpath, sep+staticSplit+sep) {
-					thumbnailimg = strings.Split(fullpath, sep+staticSplit+sep)[1]
-				} else {
-					if !noerrors {
-						log.Print("not within your Hugo directory structure")
-					}
-					thumbnailimg = fullpath
-				}
-				// thumbnailimg := strings.Split(fullpath, sep+staticSplit+sep)[1]
-				thumbnailimg = filepath.ToSlash(filepath.Clean("/" + thumbnailimg))
+				thumbnailimg := fullpath
 
-				// fmt.Printf("{{< imgdiv class=\"%s\" href=\"%s\" alt=\"%s\"\n",
-				// 	class, fullresimg, caption)
-				// fmt.Printf("    src=\"%s\" width=\"%d\" height=\"%d\" >}}\n\n",
-				// 	thumbnailimg, width, height)
+				for _, d := range contentDirs {
+					if strings.HasPrefix(fullpath, d) {
+						thumbnailimg = filepath.ToSlash(filepath.Clean(fullpath[len(d):len(fullpath)]))
+						break
+					}
+				}
+				// if strings.Contains(fullpath, sep+staticSplit+sep) {
+				// 	thumbnailimg = strings.Split(fullpath, sep+staticSplit+sep)[1]
+				// } else {
+				// 	if !noerrors {
+				// 		log.Print("not within your Hugo directory structure")
+				// 	}
+				// 	thumbnailimg = fullpath
+				// }
+				// thumbnailimg := strings.Split(fullpath, sep+staticSplit+sep)[1]
+				// thumbnailimg = filepath.ToSlash(filepath.Clean("/" + thumbnailimg))
 
 				r := tplparms{
 					base_noext, class, fullresimg, caption,
