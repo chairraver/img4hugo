@@ -227,3 +227,7 @@ tag).
 {{if .Get "alt"}}<p><em>{{.Get "alt"}}</em></p>{{end}}
 </div>
 ```
+
+## License
+
+Licensed under the [MIT License](LICENSE.txt).
